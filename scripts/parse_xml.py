@@ -5,6 +5,7 @@ import os
 
 
 def get_filelist(path, extension=".xml"):
+    # creates a list of files with mathching extension, located anywhere under path
     filenames = []
     for root, dirs, files in os.walk(path):
         xml_files = [
@@ -16,6 +17,7 @@ def get_filelist(path, extension=".xml"):
 
 
 def read_xmlfile(filename="dict.xml", stdout=False):
+    # open xml file and read file content
     tree = ET.parse(filename)
     root = tree.getroot()
     if stdout:
@@ -24,10 +26,16 @@ def read_xmlfile(filename="dict.xml", stdout=False):
 
 
 def element_tag(xml_element):
+    # turns an xml-elemant into a dictonary
+    # usually: xml_element[0] now: xml_element['tag_name']
+    # careful, does not work with identical tags
     return {e.tag: e for e in xml_element}
 
 
 def element_tags(xml_element, tag_list):
+    # access elements in xml-files by tag names
+    # does not work with identical tags
+    # use: element_tags(root, ["DATA_SET", "PART", "NAME_LABEL"]).text
     current = xml_element
     for tag in tag_list:
         current = element_tag(current)[tag]
@@ -35,7 +43,7 @@ def element_tags(xml_element, tag_list):
 
 
 def get_pqc_data(root):
-
+    # parse pqc data and obtain measurement results
     # get device ID
     pqc_dict = {
         "NAME_LABEL": element_tags(root, ["DATA_SET", "PART", "NAME_LABEL"]).text,
@@ -72,11 +80,11 @@ def get_pqc_data(root):
     return pqc_dict
 
 
-def reduce_data(dict_list, pos):
-    included = [all([mydict[key] == pos[key] for key in pos]) for mydict in dict_list]
-    return list(compress(dict_list, included))
+# def reduce_data(dict_list, pos):
+#     included = [all([mydict[key] == pos[key] for key in pos]) for mydict in dict_list]
+#     return list(compress(dict_list, included))
 
 
-def print_dict(mydict_list, keys):
-    for mydict in mydict_list:
-        print([key + " : " + str(mydict[key]) for key in keys])
+# def print_dict(mydict_list, keys):
+#     for mydict in mydict_list:
+#         print([key + " : " + str(mydict[key]) for key in keys])

@@ -1,5 +1,7 @@
 #User files
 notes.org
+notes.org~
+*.py~
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
