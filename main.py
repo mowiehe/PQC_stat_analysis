@@ -1,10 +1,12 @@
 import pandas as pd
+import pdb
 import matplotlib.pyplot as plt
-from .scripts import parse_xml, pqc_measurement, plotter, df_ops
+from .scripts import parse_xml, plotter, df_ops
 
 
 def get_full_df(path, process_info=None):
     # reads all xml files under path and exctracts PQC parameters, returns dataframe
+    print("Reading all xml-files under", path, "and extracting PQC parameters")
     filenames = parse_xml.get_filelist(path)  # get all xml files
 
     # parse xml files and create dataframe
@@ -14,24 +16,18 @@ def get_full_df(path, process_info=None):
         pqc_dicts.append(parse_xml.get_pqc_data(root))
     df = pd.DataFrame(pqc_dicts)
     df = df.sort_values("NAME_LABEL")
-    df = df_ops.get_PQC_batch_tables(df)  # reduce table to significant values
     if process_info:
-        pi = pd.read_csv(process_info, sep="\t")  # open process information
-        df = df.merge(pi, on="NAME_LABEL")  # add process info to dataframe
+        df = add_process_info(df, process_info)
+    df = df_ops.get_PQC_batch_tables(df)  # reduce table to significant values
+    return df
 
-        print(
-            df[
-                [
-                    "NAME_LABEL",
-                    "P-stop-layout",
-                    "Thickness",
-                    "Vfb",
-                    "Oxide",
-                    "P-stop",
-                    "Proc.",
-                ]
-            ]
-        )
+
+def add_process_info(df, process_info, merge_on="NAME_LABEL", sep="\t"):
+    print("Adding proccess info from", process_info)
+    pi = pd.read_csv(process_info, sep=sep, dtype="object")  # open process information
+    df = df.merge(pi, how="left", on=merge_on)  # add process info to dataframe
+
+    print(df[["NAME_LABEL"] + [i for i in pi.keys()]])
     return df
 
 

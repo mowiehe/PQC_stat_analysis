@@ -51,16 +51,28 @@ def get_PQC_batch_tables(df):
     ]
 
     for parlist in parlists:
-        try:
-            dftemp = df.loc[
+
+        if parlist[3] in df.keys():
+            single_entry = df.loc[
                 (df["KIND_OF_HM_FLUTE_ID"] == parlist[0])
                 & (df["KIND_OF_HM_STRUCT_ID"] == parlist[1])
                 & (df["KIND_OF_HM_CONFIG_ID"] == parlist[2])
-                & (np.isnan(df[parlist[3]]) == False),
-                ["NAME_LABEL", parlist[3]],
+                & (
+                    np.isnan(df[parlist[3]]) == False
+                ),  # relevant to separate IV/CV on Diode Half
+                [
+                    "NAME_LABEL",
+                    parlist[3],
+                ],
             ]
-            dftemp = dftemp.rename(columns={parlist[3]: parlist[1] + "_" + parlist[3]})
-            dfnew = dfnew.merge(dftemp, on="NAME_LABEL", how="left")
-        except:
-            print("skipping", parlist)
+            single_entry = single_entry.rename(
+                columns={parlist[3]: parlist[1] + "_" + parlist[3]}
+            )
+            dfnew = dfnew.merge(single_entry, on="NAME_LABEL", how="left")
+
+            if len(single_entry) != len(dfnew):
+                print("Missing measurements for", parlist)
+        else:
+            print("No entry for", parlist)
+
     return dfnew

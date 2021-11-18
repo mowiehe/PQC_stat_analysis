@@ -18,7 +18,7 @@ def boxplot(df, data_column, process_column=None):
         label = "All"
 
     fig, ax = plt.subplots()
-    n, bins, _ = ax.hist(data, label=label, rwidth=1.0)
+    n, bins, _ = ax.hist(data, label=label, rwidth=1.0, histtype="barstacked")
     ax.set_xlabel(data_column)
     ax.set_ylabel("Occurences")
 
