@@ -76,3 +76,8 @@ def get_PQC_batch_tables(df):
             print("No entry for", parlist)
 
     return dfnew
+
+
+def drop_entry(df, droplist, column_name="NAME_LABEL"):
+    df.drop(df.loc[df[column_name].isin(droplist)].index, inplace=True)
+    return df
