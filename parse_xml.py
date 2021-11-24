@@ -1,6 +1,4 @@
 import xml.etree.ElementTree as ET
-from itertools import compress
-import pdb
 import os
 
 
@@ -78,13 +76,3 @@ def get_pqc_data(root):
         pqc_dict[par] = float(element_tags(el_data, [par]).text)
 
     return pqc_dict
-
-
-# def reduce_data(dict_list, pos):
-#     included = [all([mydict[key] == pos[key] for key in pos]) for mydict in dict_list]
-#     return list(compress(dict_list, included))
-
-
-# def print_dict(mydict_list, keys):
-#     for mydict in mydict_list:
-#         print([key + " : " + str(mydict[key]) for key in keys])
