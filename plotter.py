@@ -16,11 +16,6 @@ def prepare_data(df, data_column, process_column):
     xmin = options[data_column][2]
     xmax = options[data_column][3]
 
-    # if (
-    #     "DIODE_HALF" in data_column
-    # ):  # for diode measurements discard UL diodes (no edge ring), not used because is not affecting results, just lowers statistic
-    #     df = df.loc[~(df["NAME_LABEL"].str.contains("UL"))]
-
     # get all options from process_column
     proc = list(set(df[process_column]))
     proc.sort()
@@ -91,7 +86,37 @@ def boxplots(
             plt.close()
 
 
-def correlation_plot(df, data_column_x, data_column_y, process_column, plot=False):
+def get_correlations(df, plot_data_columns):
+    # return paired plot data columns and corresponding correlations
+    pairs = []
+    correlations = []
+    for i in plot_data_columns:
+        for j in plot_data_columns:
+            # make sure no pair is evaluated twice
+            this_pair = [i, j]
+            if (
+                any([all([col in pair for col in this_pair]) for pair in pairs])
+                or i == j
+            ):
+                continue
+
+            fig, ax, r, p = correlation_plot(
+                df, i, j, process_column="NAME_LABEL", plot=False
+            )
+            correlations.append(r)
+            pairs.append(this_pair)
+    return pairs, correlations
+
+
+def correlation_plot(
+    df,
+    data_column_x,
+    data_column_y,
+    process_column="NAME_LABEL",
+    plot=False,
+    out_folder="",
+    save_file=True,
+):
     # creates a correlation_plot of two data_columns for different process variants
     # change plot options
     label_x, value_mult_x, min_x, max_x = plot_options.plot_options[data_column_x]
@@ -127,7 +152,24 @@ def correlation_plot(df, data_column_x, data_column_y, process_column, plot=Fals
 
         ax.set_xlabel(label_x)
         ax.set_ylabel(label_y)
-        ax.legend(title=f"Pearson-r: {np.round(r,2)}")
+        if (
+            process_column != "NAME_LABEL"
+        ):  # only show legend if process_column is given
+            ax.legend(title=f"Pearson-r: {np.round(r,2)}")
+        if save_file:
+            out_file = (
+                out_folder
+                + data_column_x
+                + "_"
+                + data_column_y
+                + "_"
+                + process_column
+                + ".png"
+            )
+            print("save plot to", out_file)
+            plt.savefig(out_file)
+            plt.close()
+
     else:
         fig, ax = None, None
 

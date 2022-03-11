@@ -1,0 +1,4 @@
+Sensor_ID,Scratch_pad_ID,Thickness,P-Stop,Oxide-type,Flat-band-volt.[V],P-Stop-conc.,Proc.
+N4788_2,300001,120,com,B,-2,STD,epi
+N4788_14,300013,120,com,D,-2,STD,epi
+N4789_13,300035,120,com,C,-2,STD,epi
