@@ -1,5 +1,7 @@
 import xml.etree.ElementTree as ET
 import os
+import pdb
+import helper as hp
 
 
 def get_filelist(path, extension=".xml"):
@@ -24,7 +26,7 @@ def read_xmlfile(filename="dict.xml", stdout=False):
 
 
 def element_tag(xml_element):
-    # turns an xml-elemant into a dictonary
+    # turns an xml-element into a dictonary
     # usually: xml_element[0] now: xml_element['tag_name']
     # careful, does not work with identical tags
     return {e.tag: e for e in xml_element}
@@ -75,4 +77,31 @@ def get_pqc_data(root):
     for i, par in enumerate(pars):
         pqc_dict[par] = float(element_tags(el_data, [par]).text)
 
+    # add raw_measurements
+    el_measurements = get_raw_data(root)
+    pqc_dict["raw_measurement"] = el_measurements
     return pqc_dict
+
+
+def get_raw_data(root):
+    # get the measurement data
+    el_measurements = [
+        i
+        for i in element_tags(
+            root,
+            [
+                "DATA_SET",
+                "CHILD_DATA_SET",
+                "DATA_SET",
+            ],
+        ).getchildren()
+        if i.tag == "DATA"
+    ]  # list of Element 'DATA'
+    el_measurements = [
+        element_tag(i) for i in el_measurements
+    ]  # list of dicts with elements
+    el_measurements = [
+        {key: hp.convert_to_float(meas[key].text) for key in meas}
+        for meas in el_measurements
+    ]  # convert entries to floats if possible
+    return el_measurements

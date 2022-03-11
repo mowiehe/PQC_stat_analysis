@@ -1,30 +1,74 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from . import df_ops
+from . import plot_options
+import pdb
+import helper as hp
+import scipy.stats
 
 
-def boxplot(df, data_column, process_column=None):
-    # creates a single boxplot of data in data_column for different process variants
+def prepare_data(df, data_column, process_column):
+    # extracts data from df according to given column names and applies filters
+    # output are arrays with corresponding data and label
+    options = plot_options.plot_options
+    xlabel = options[data_column][0]
+    value_mult = options[data_column][1]
+    xmin = options[data_column][2]
+    xmax = options[data_column][3]
+
+    # if (
+    #     "DIODE_HALF" in data_column
+    # ):  # for diode measurements discard UL diodes (no edge ring), not used because is not affecting results, just lowers statistic
+    #     df = df.loc[~(df["NAME_LABEL"].str.contains("UL"))]
+
     # get all options from process_column
-    if process_column:
-        proc = set(df[process_column])
-        data = []
-        label = []
-        for i in proc:  # loop over selected process splits, e.g. oxide type A,B,C,..
-            i_data = np.array(df.loc[(df[process_column] == i), data_column])
-            i_data = np.array([d for d in i_data if not np.isnan(d)])  # delete nans
-            data.append(i_data)
-            label.append(process_column + " " + str(i))
-    else:
-        data = np.array(df.loc[:, data_column])
-        label = "All"
+    proc = list(set(df[process_column]))
+    proc.sort()
+    data = []
+    label = []
+    overflow = []
+    failed = []
+    for i in proc:  # loop over selected process splits, e.g. oxide type A,B,C,..
+        i_data_all = np.array(df.loc[(df[process_column] == i), data_column])
+        i_data_all = i_data_all * value_mult  # changing unit
+        i_data = i_data_all[
+            (i_data_all >= xmin) & (i_data_all <= xmax) & ~np.isnan(i_data_all)
+        ]  # filtering
+        i_overflow = i_data_all[
+            ~np.isin(i_data_all, i_data) & ~np.isnan(i_data_all)
+        ]  # all values in original data, which did not pass the filter, excluding nans
+        i_failed = len(i_data_all[np.isnan(i_data_all)])
 
+        data.append(i_data)
+        overflow.append(i_overflow)
+        failed.append(i_failed)
+
+        if len(i_data) == 0:
+            mean, std = np.nan, np.nan
+        else:
+            mean, std = hp.get_mean_std_rounded(i_data.mean(), i_data.std())
+        label.append(process_column + " " + str(i) + f" ({mean} / {std})")
+    return data, label, xlabel, overflow, failed
+
+
+def boxplot(df, data_column, process_column):
+    # creates a single boxplot of data in data_column for different process variants
+    # change plot options
+    data, label, xlabel, overflow, failed = prepare_data(
+        df, data_column, process_column
+    )
     fig, ax = plt.subplots()
-    n, bins, _ = ax.hist(data, label=label, rwidth=1.0, histtype="barstacked")
-    ax.set_xlabel(data_column)
+    n, bins, _ = ax.hist(data, label=label, rwidth=1.0, histtype="barstacked", bins=20)
+    ax.set_xlabel(xlabel)
+    #   ax.set_xlim(xmin, xmax)
     ax.set_ylabel("Occurences")
-
-    ax.legend()
+    total_data = sum([len(i) for i in data])
+    total_overflow = sum([len(i) for i in overflow])
+    total_failed = sum(failed)
+    ax.legend(title="Type, (mean / std.)")
+    ax.set_title(
+        f"Plotted: {total_data}, overflow: {total_overflow}, failed: {total_failed}"
+    )
     return fig, ax
 
 
@@ -38,13 +82,56 @@ def boxplots(
     # create boxplots and save to file
     for plot_data_column in plot_data_columns:
         fig, ax = boxplot(df, plot_data_column, plot_process_column)
-        print(df[["NAME_LABEL", plot_data_column, plot_process_column]])
         if save_file:
             out_file = (
                 out_folder + plot_data_column + "_" + plot_process_column + ".png"
             )
             print("save plot to", out_file)
             plt.savefig(out_file)
+            plt.close()
+
+
+def correlation_plot(df, data_column_x, data_column_y, process_column, plot=False):
+    # creates a correlation_plot of two data_columns for different process variants
+    # change plot options
+    label_x, value_mult_x, min_x, max_x = plot_options.plot_options[data_column_x]
+    label_y, value_mult_y, min_y, max_y = plot_options.plot_options[data_column_y]
+
+    df = df.copy()
+    df = df[
+        ~np.isnan(df[data_column_x]) & ~np.isnan(df[data_column_y])
+    ]  # get rid of nans
+    df[data_column_x] = df[data_column_x] * value_mult_x  # change units x
+    df[data_column_y] = df[data_column_y] * value_mult_y  # change units y
+    df = df[(df[data_column_x] >= min_x) & (df[data_column_x] <= max_x)]  # limit in x
+    df = df[(df[data_column_y] >= min_y) & (df[data_column_y] <= max_y)]  # limit in y
+
+    r, p = scipy.stats.pearsonr(df[data_column_x], df[data_column_y])
+
+    if plot:
+        fig, ax = plt.subplots()
+
+        # get all options from process_column
+        proc = list(set(df[process_column]))
+        proc.sort()
+
+        for i in proc:
+            label = process_column + " " + str(i)
+            ax.plot(
+                data_column_x,
+                data_column_y,
+                "o",
+                data=df[df[process_column] == i],
+                label=label,
+            )
+
+        ax.set_xlabel(label_x)
+        ax.set_ylabel(label_y)
+        ax.legend(title=f"Pearson-r: {np.round(r,2)}")
+    else:
+        fig, ax = None, None
+
+    return fig, ax, r, p
 
 
 def stat_plot(

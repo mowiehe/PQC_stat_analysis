@@ -1,7 +1,9 @@
 import numpy as np
 import pandas as pd
 from . import parse_xml
+import pdb
 
+# default data_columns, only used if none are provided to the functions
 data_columns = [
     "FET_PSS_VTH_V",
     "MOS_QUARTER_VFB_V",
@@ -45,6 +47,9 @@ data_columns = [
 
 
 def get_PQC_batch_tables(df):
+    # input: df with one line per xml file, multiple lines per device..
+    # output: df with one line per device, measurements for each device in several columns
+
     # create emtpy df with samplenames
     dfnew = df[["NAME_LABEL"]]
     dfnew = dfnew.drop_duplicates(["NAME_LABEL"])
@@ -57,12 +62,12 @@ def get_PQC_batch_tables(df):
         ["PQC1", "MOS_QUARTER", "Not Used", "CACC_PFRD"],
         ["PQC1", "MOS_QUARTER", "Not Used", "TOX_NM"],
         ["PQC1", "MOS_QUARTER", "Not Used", "NOX"],
-        ["PQC1", "VDP_POLY", "STANDARD", "RSH_OHMSQR"],
-        ["PQC1", "VDP_POLY", "ROTATED", "RSH_OHMSQR"],
-        ["PQC1", "VDP_STRIP", "STANDARD", "RSH_OHMSQR"],
-        ["PQC1", "VDP_STRIP", "ROTATED", "RSH_OHMSQR"],
-        ["PQC1", "VDP_STOP", "STANDARD", "RSH_OHMSQR"],
-        ["PQC1", "VDP_STOP", "ROTATED", "RSH_OHMSQR"],
+        ["PQC1", "VDP_POLY", "Standard", "RSH_OHMSQR"],
+        ["PQC1", "VDP_POLY", "Rotated", "RSH_OHMSQR"],
+        ["PQC1", "VDP_STRIP", "Standard", "RSH_OHMSQR"],
+        ["PQC1", "VDP_STRIP", "Rotated", "RSH_OHMSQR"],
+        ["PQC1", "VDP_STOP", "Standard", "RSH_OHMSQR"],
+        ["PQC1", "VDP_STOP", "Rotated", "RSH_OHMSQR"],
         ["PQC1", "CAP_W", "Not Used", "CAC_PFRD"],
         ["PQC1", "CAP_E", "Not Used", "CAC_PFRD"],
         ["PQC2", "GCD", "Not Used", "ISURF_PAMPR"],
@@ -76,18 +81,18 @@ def get_PQC_batch_tables(df):
         ["PQC3", "DIODE_HALF", "Not Used", "RHO_KOHMCM"],
         ["PQC3", "DIODE_HALF", "Not Used", "NA"],
         ["PQC3", "MEANDER_METAL", "Not Used", "R_OHM"],
-        ["PQC3", "CLOVER_METAL", "STANDARD", "RSH_OHMSQR"],
-        ["PQC3", "CLOVER_METAL", "ROTATED", "RSH_OHMSQR"],
-        ["PQC3", "VDP_EDGE", "STANDARD", "RSH_OHMSQR"],
-        ["PQC3", "VDP_EDGE", "ROTATED", "RSH_OHMSQR"],
-        ["PQC3", "VDP_EDGE", "LINEWIDTH", "T_UM"],
-        ["PQC3", "VDP_BULK", "STANDARD", "RSH_OHMSQR"],
-        ["PQC3", "VDP_BULK", "ROTATED", "RSH_OHMSQR"],
-        ["PQC3", "VDP_BULK", "STANDARD", "RHO_KOHMCM"],
+        ["PQC3", "CLOVER_METAL", "Standard", "RSH_OHMSQR"],
+        ["PQC3", "CLOVER_METAL", "Rotated", "RSH_OHMSQR"],
+        ["PQC3", "VDP_EDGE", "Standard", "RSH_OHMSQR"],
+        ["PQC3", "VDP_EDGE", "Rotated", "RSH_OHMSQR"],
+        ["PQC3", "VDP_EDGE", "Linewidth", "T_UM"],
+        ["PQC3", "VDP_BULK", "Standard", "RSH_OHMSQR"],
+        ["PQC3", "VDP_BULK", "Rotated", "RSH_OHMSQR"],
+        ["PQC3", "VDP_BULK", "Standard", "RHO_KOHMCM"],
         ["PQC4", "GCD05", "Not Used", "ISURF_PAMPR"],
         ["PQC4", "GCD05", "Not Used", "S0_CMSEC"],
-        ["PQC4", "CBKR_POLY", "STANDARD", "R_OHM"],
-        ["PQC4", "CBKR_STRIP", "STANDARD", "R_OHM"],
+        ["PQC4", "CBKR_POLY", "Standard", "R_OHM"],
+        ["PQC4", "CBKR_STRIP", "Standard", "R_OHM"],
         ["PQC4", "CC_EDGE", "Not Used", "R_OHM"],
         ["PQC4", "CC_POLY", "Not Used", "R_OHM"],
         ["PQC4", "CC_STRIP", "Not Used", "R_OHM"],
@@ -103,18 +108,26 @@ def get_PQC_batch_tables(df):
                 & (
                     np.isnan(df[parlist[3]]) == False
                 ),  # relevant to separate IV/CV on Diode Half
-                [
-                    "NAME_LABEL",
-                    parlist[3],
-                ],
-            ]
+                ["NAME_LABEL", parlist[3], "raw_measurement"],
+            ]  # those are entries of all samples for a specific measurement
+            new_var_name = parlist[1] + "_" + parlist[3]
             single_entry = single_entry.rename(
-                columns={parlist[3]: parlist[1] + "_" + parlist[3]}
+                columns={
+                    parlist[3]: new_var_name,
+                    "raw_measurement": new_var_name + "_raw",
+                }
             )
             dfnew = dfnew.merge(single_entry, on="NAME_LABEL", how="left")
 
             if len(single_entry) != len(dfnew):
-                print("Missing measurements for", parlist)
+                missing_device = list(
+                    dfnew.loc[
+                        ~dfnew["NAME_LABEL"].isin(single_entry["NAME_LABEL"]),
+                        "NAME_LABEL",
+                    ]
+                )
+                print(len(missing_device), "missing measurements for", parlist)
+
         else:
             print("No entry for", parlist)
 
@@ -154,11 +167,10 @@ def get_stat_graph(df, data_columns, process_column, proc):
     return relative_means, relative_stds
 
 
-def get_full_df(path, process_info=None):
+def get_raw_df(path):
     # reads all xml files under path and exctracts PQC parameters, returns dataframe
-    print("Reading all xml-files under", path, "and extracting PQC parameters")
+    print("\nReading all xml-files under", path, "and extracting PQC parameters")
     filenames = parse_xml.get_filelist(path)  # get all xml files
-
     # parse xml files and create dataframe
     pqc_dicts = []
     for i, f in enumerate(filenames):
@@ -166,8 +178,11 @@ def get_full_df(path, process_info=None):
         pqc_dicts.append(parse_xml.get_pqc_data(root))
     df = pd.DataFrame(pqc_dicts)
     df = df.sort_values("NAME_LABEL")
-    if process_info:
-        df = add_process_info(df, process_info)
+    return df
+
+
+def get_full_df(path):
+    df = get_raw_df(path)
     df = get_PQC_batch_tables(df)  # reduce table to significant values
     return df
 
@@ -175,7 +190,8 @@ def get_full_df(path, process_info=None):
 def add_process_info(df, process_info, merge_on="NAME_LABEL", sep="\t"):
     print("Adding proccess info from", process_info)
     pi = pd.read_csv(process_info, sep=sep, dtype="object")  # open process information
+    not_found = df.loc[~df[merge_on].isin(pi[merge_on])]
+    if len(not_found) > 0:
+        print("No process info found for", not_found)
     df = df.merge(pi, how="left", on=merge_on)  # add process info to dataframe
-
-    print(df[["NAME_LABEL"] + [i for i in pi.keys()]])
     return df
