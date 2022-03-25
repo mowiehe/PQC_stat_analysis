@@ -1,3 +1,6 @@
+import numpy as np
+
+
 def convert_to_float(a):
     try:
         return float(a)
